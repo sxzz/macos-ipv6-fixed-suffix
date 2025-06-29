@@ -22,6 +22,9 @@ CHECK_INTERVAL=10
 # IPv6地址标签
 IPV6_LABEL="ipv6monitor"
 
+# 后台运行模式（用于服务）
+DAEMON_MODE=false
+
 # ========== 函数定义 ==========
 
 log() {
@@ -98,7 +101,8 @@ add_ipv6_address() {
         return 0
     fi
     
-    if [[ "$confirm_required" == "true" ]]; then
+    # 在后台模式下跳过交互确认
+    if [[ "$confirm_required" == "true" && "$DAEMON_MODE" == "false" ]]; then
         echo "准备添加IPv6地址: $address/$PREFIX_LENGTH 到接口 $interface"
         echo -n "是否继续？(Y/n): "
         read -r response
@@ -190,12 +194,14 @@ IPv6前缀监控脚本
     -p, --prefix-length LENGTH   设置前缀长度 (默认: $PREFIX_LENGTH)
     -t, --interval SECONDS       设置检查间隔 (默认: $CHECK_INTERVAL)
     -l, --log-file FILE          设置日志文件路径 (默认: $LOG_FILE)
+    -d, --daemon                 后台模式运行（跳过交互确认）
     -h, --help                   显示此帮助信息
 
 示例:
     $0                           使用默认设置
     $0 -i en0 -s ::200          监控en0接口，使用::200作为后缀
     $0 -p 56 -t 5               使用56位前缀，5秒检查间隔
+    $0 --daemon                 后台模式运行（无交互确认）
 
 注意:
     - 脚本需要sudo权限来修改网络接口配置
@@ -228,6 +234,10 @@ while [[ $# -gt 0 ]]; do
         -l|--log-file)
             LOG_FILE="$2"
             shift 2
+            ;;
+        -d|--daemon)
+            DAEMON_MODE=true
+            shift
             ;;
         -h|--help)
             show_help
