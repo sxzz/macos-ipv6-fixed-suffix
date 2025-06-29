@@ -117,9 +117,6 @@ create_launchd_plist() {
     <key>ProgramArguments</key>
     <array>
         <string>$INSTALL_DIR/run.sh</string>
-        <string>--daemon</string>
-        <string>--log-file</string>
-        <string>$LOG_FILE</string>
     </array>
     
     <key>RunAtLoad</key>
@@ -372,39 +369,8 @@ show_completion_info() {
     echo "  查看日志: ipv6-monitor log"
     echo ""
     echo "服务已设置为开机自启，将在后台自动监控 IPv6 地址变化。"
-    echo "后台模式运行，无需手动确认，自动添加 IPv6 地址。"
     echo ""
     warning "如需卸载服务，请运行: sudo launchctl unload $PLIST_FILE && sudo rm -f $PLIST_FILE"
-}
-
-# 创建卸载说明
-create_uninstall_info() {
-    log "创建卸载说明..."
-    
-    cat > "$INSTALL_DIR/UNINSTALL.md" << 'EOF'
-# 卸载说明
-
-如需卸载 macOS IPv6 Fixed Suffix 服务，请执行以下命令：
-
-## 停止并卸载服务
-```bash
-sudo launchctl unload /Library/LaunchDaemons/com.github.sxzz.macos-ipv6-fixed-suffix.plist
-sudo rm -f /Library/LaunchDaemons/com.github.sxzz.macos-ipv6-fixed-suffix.plist
-```
-
-## 删除命令行工具（可选）
-```bash
-sudo rm -f /usr/local/bin/ipv6-monitor
-```
-
-## 完全删除安装文件和日志（可选）
-```bash
-sudo rm -rf /usr/local/bin/macos-ipv6-fixed-suffix
-sudo rm -rf /var/log/macos-ipv6-fixed-suffix
-```
-EOF
-    
-    success "创建卸载说明: $INSTALL_DIR/UNINSTALL.md"
 }
 
 # 主安装流程
@@ -422,7 +388,6 @@ main() {
     create_launchd_plist
     start_service
     create_management_scripts
-    create_uninstall_info
     
     show_completion_info
 }

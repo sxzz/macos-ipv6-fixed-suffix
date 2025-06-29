@@ -26,8 +26,13 @@ echo -e "${YELLOW}正在卸载服务...${NC}"
 
 # 停止并卸载服务
 if launchctl list | grep -q "$SERVICE_NAME"; then
-    launchctl unload "$PLIST_FILE" 2>/dev/null
-    echo -e "${GREEN}✓${NC} 服务已停止"
+    if launchctl bootout system "$PLIST_FILE" 2>/dev/null; then
+        echo -e "${GREEN}✓${NC} 服务已停止 (bootout)"
+    elif launchctl unload "$PLIST_FILE" 2>/dev/null; then
+        echo -e "${GREEN}✓${NC} 服务已停止 (unload)"
+    else
+        echo -e "${YELLOW}⚠${NC} 服务停止失败"
+    fi
 else
     echo -e "${YELLOW}⚠${NC} 服务未在运行"
 fi
@@ -44,9 +49,17 @@ if [[ -L "/usr/local/bin/ipv6-monitor" ]]; then
     echo -e "${GREEN}✓${NC} 删除命令行工具"
 fi
 
+# 删除程序文件
+if [[ -d "/usr/local/bin/macos-ipv6-fixed-suffix" ]]; then
+    rm -rf "/usr/local/bin/macos-ipv6-fixed-suffix"
+    echo -e "${GREEN}✓${NC} 删除程序文件"
+fi
+
+# 删除日志文件
+if [[ -d "/var/log/macos-ipv6-fixed-suffix" ]]; then
+    rm -rf "/var/log/macos-ipv6-fixed-suffix"
+    echo -e "${GREEN}✓${NC} 删除日志文件"
+fi
+
 echo ""
-echo -e "${GREEN}服务卸载完成！${NC}"
-echo ""
-echo "如需完全清理，可手动删除以下目录（可选）："
-echo "  sudo rm -rf /usr/local/bin/macos-ipv6-fixed-suffix"
-echo "  sudo rm -rf /var/log/macos-ipv6-fixed-suffix"
+echo -e "${GREEN}完全卸载完成！${NC}"

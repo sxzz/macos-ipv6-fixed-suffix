@@ -13,29 +13,16 @@ PREFIX_LENGTH=64
 # 监控的网络接口（默认为主要接口，留空自动检测）
 INTERFACE=""
 
-# 日志文件路径
-LOG_FILE="/tmp/ipv6_monitor.log"
-
 # 检查间隔（秒）
 CHECK_INTERVAL=10
 
 # IPv6地址标签
 IPV6_LABEL="ipv6monitor"
 
-# 后台运行模式（用于服务）
-DAEMON_MODE=false
-
 # ========== 函数定义 ==========
 
 log() {
-    local message="[$(date '+%Y-%m-%d %H:%M:%S')] $1"
-    if [[ "$DAEMON_MODE" == "true" ]]; then
-        # 在 daemon 模式下只写入文件，避免与 LaunchDaemon 的 StandardOutPath 重复
-        echo "$message" >> "$LOG_FILE"
-    else
-        # 在交互模式下输出到终端和文件
-        echo "$message" | tee -a "$LOG_FILE"
-    fi
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1"
 }
 
 get_primary_interface() {
@@ -101,26 +88,10 @@ remove_labeled_ipv6_addresses() {
 add_ipv6_address() {
     local interface="$1"
     local address="$2"
-    local confirm_required="$3"
     
     if ipv6_address_exists "$interface" "$address"; then
         log "IPv6地址 $address 已存在于接口 $interface"
         return 0
-    fi
-    
-    # 在后台模式下跳过交互确认
-    if [[ "$confirm_required" == "true" && "$DAEMON_MODE" == "false" ]]; then
-        echo "准备添加IPv6地址: $address/$PREFIX_LENGTH 到接口 $interface"
-        echo -n "是否继续？(Y/n): "
-        read -r response
-        case "$response" in
-            [nN]|[nN][oO])
-                log "用户取消添加地址: $address"
-                return 1
-                ;;
-            *)
-                ;;
-        esac
     fi
     
     log "在接口 $interface 上添加IPv6地址: $address/$PREFIX_LENGTH"
@@ -155,7 +126,7 @@ handle_prefix_change() {
     
     for prefix in "${prefixes_array[@]}"; do
         local new_address=$(construct_ipv6_address "$prefix" "$IPV6_SUFFIX")
-        add_ipv6_address "$interface" "$new_address" "$is_initial"
+        add_ipv6_address "$interface" "$new_address"
     done
 }
 
@@ -200,20 +171,16 @@ IPv6前缀监控脚本
     -s, --suffix SUFFIX          设置IPv6后缀 (默认: $IPV6_SUFFIX)
     -p, --prefix-length LENGTH   设置前缀长度 (默认: $PREFIX_LENGTH)
     -t, --interval SECONDS       设置检查间隔 (默认: $CHECK_INTERVAL)
-    -l, --log-file FILE          设置日志文件路径 (默认: $LOG_FILE)
-    -d, --daemon                 后台模式运行（跳过交互确认）
     -h, --help                   显示此帮助信息
 
 示例:
     $0                           使用默认设置
     $0 -i en0 -s ::200          监控en0接口，使用::200作为后缀
     $0 -p 56 -t 5               使用56位前缀，5秒检查间隔
-    $0 --daemon                 后台模式运行（无交互确认）
 
 注意:
     - 脚本需要sudo权限来修改网络接口配置
     - 按Ctrl+C停止监控
-    - 日志文件: $LOG_FILE
 EOF
 }
 
@@ -237,14 +204,6 @@ while [[ $# -gt 0 ]]; do
         -t|--interval)
             CHECK_INTERVAL="$2"
             shift 2
-            ;;
-        -l|--log-file)
-            LOG_FILE="$2"
-            shift 2
-            ;;
-        -d|--daemon)
-            DAEMON_MODE=true
-            shift
             ;;
         -h|--help)
             show_help
@@ -285,9 +244,6 @@ fi
 if [[ -z "$IPV6_SUFFIX" ]]; then
     IPV6_SUFFIX=$(get_default_ipv6_suffix "$INTERFACE")
 fi
-
-# 创建日志目录
-mkdir -p "$(dirname "$LOG_FILE")"
 
 # 设置信号处理
 cleanup_on_exit() {
