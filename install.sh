@@ -80,16 +80,16 @@ download_files() {
     # 下载主脚本
     local run_script_url="https://raw.githubusercontent.com/sxzz/macos-ipv6-fixed-suffix/refs/heads/main/run.sh"
     
-    if command -v curl >/dev/null 2>&1; then
-        if curl -fsSL "$run_script_url" -o "$INSTALL_DIR/run.sh"; then
+    if command -v wget >/dev/null 2>&1; then
+        if wget -q "$run_script_url" -O "$INSTALL_DIR/run.sh"; then
             chmod +x "$INSTALL_DIR/run.sh"
             success "下载主脚本到: $INSTALL_DIR/run.sh"
         else
             error "下载脚本失败"
             exit 1
         fi
-    elif command -v wget >/dev/null 2>&1; then
-        if wget -q "$run_script_url" -O "$INSTALL_DIR/run.sh"; then
+    elif command -v curl >/dev/null 2>&1; then
+        if curl -fsSL "$run_script_url" -o "$INSTALL_DIR/run.sh"; then
             chmod +x "$INSTALL_DIR/run.sh"
             success "下载主脚本到: $INSTALL_DIR/run.sh"
         else
