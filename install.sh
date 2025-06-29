@@ -126,12 +126,7 @@ create_launchd_plist() {
     <true/>
     
     <key>KeepAlive</key>
-    <dict>
-        <key>SuccessfulExit</key>
-        <false/>
-        <key>Crashed</key>
-        <true/>
-    </dict>
+    <true/>
     
     <key>StandardOutPath</key>
     <string>$LOG_FILE</string>
@@ -142,17 +137,11 @@ create_launchd_plist() {
     <key>UserName</key>
     <string>root</string>
     
-    <key>GroupName</key>
-    <string>wheel</string>
+    <key>WorkingDirectory</key>
+    <string>/tmp</string>
     
     <key>ThrottleInterval</key>
     <integer>10</integer>
-    
-    <key>ProcessType</key>
-    <string>Background</string>
-    
-    <key>LimitLoadToSessionType</key>
-    <string>System</string>
 </dict>
 </plist>
 EOF
@@ -168,10 +157,31 @@ EOF
 uninstall_old_version() {
     log "检查并卸载旧版本..."
     
-    # 停止服务
-    if launchctl list | grep -q "$SERVICE_NAME"; then
-        launchctl unload "$PLIST_FILE" 2>/dev/null || true
-        warning "停止旧版本服务"
+    # 临时关闭 set -e
+    set +e
+    
+    # 检查服务是否在运行
+    if launchctl print "system/$SERVICE_NAME" >/dev/null 2>&1; then
+        warning "发现运行中的服务，正在停止..."
+        
+        # 尝试 bootout 命令（较新的 macOS）
+        if launchctl bootout system "$PLIST_FILE" 2>/dev/null; then
+            warning "使用 bootout 停止服务"
+        else
+            # 尝试传统的 unload 命令
+            launchctl unload "$PLIST_FILE" 2>/dev/null
+            warning "使用 unload 停止服务"
+        fi
+        
+        # 等待服务完全停止
+        sleep 2
+        
+        # 再次检查是否还有残留进程
+        if launchctl print "system/$SERVICE_NAME" >/dev/null 2>&1; then
+            warning "服务可能仍在运行，尝试强制停止..."
+            # 尝试通过进程名终止
+            pkill -f "run.sh.*daemon" 2>/dev/null
+        fi
     fi
     
     # 删除旧的 plist 文件
@@ -179,30 +189,54 @@ uninstall_old_version() {
         rm -f "$PLIST_FILE"
         warning "删除旧版本配置文件"
     fi
+    
+    # 重新启用 set -e
+    set -e
 }
 
 # 加载并启动服务
 start_service() {
     log "启动 IPv6 监控服务..."
     
-    # 加载服务
-    if launchctl load "$PLIST_FILE"; then
-        success "服务已加载并启动"
+    # 使用 bootstrap 命令加载服务（适用于较新的 macOS 版本）
+    if launchctl bootstrap system "$PLIST_FILE" 2>/dev/null; then
+        success "服务已加载并启动 (bootstrap)"
     else
-        error "服务启动失败"
-        exit 1
+        # 如果 bootstrap 失败，尝试传统的 load 命令
+        log "尝试使用传统 load 命令..."
+        if launchctl load "$PLIST_FILE" 2>/dev/null; then
+            success "服务已加载并启动 (load)"
+        else
+            error "服务启动失败"
+            warning "请检查配置文件: $PLIST_FILE"
+            warning "手动尝试: sudo launchctl bootstrap system '$PLIST_FILE'"
+            exit 1
+        fi
     fi
     
-    # 等待片刻让服务启动
-    sleep 2
+    # 等待服务启动
+    sleep 3
     
-    # 检查服务状态
-    if launchctl list | grep -q "$SERVICE_NAME"; then
+    # 使用 launchctl print 检查服务状态
+    if SERVICE_INFO=$(launchctl print "system/$SERVICE_NAME" 2>/dev/null); then
         success "服务运行正常"
         log "服务标识: $SERVICE_NAME"
         log "日志文件: $LOG_FILE"
+        
+        # 提取并显示服务详细状态
+        PID=$(echo "$SERVICE_INFO" | grep "pid =" | awk '{print $3}')
+        STATE=$(echo "$SERVICE_INFO" | grep "state =" | awk '{print $3}')
+        
+        if [[ -n "$PID" ]]; then
+            log "进程 PID: $PID"
+        fi
+        if [[ -n "$STATE" ]]; then
+            log "服务状态: $STATE"
+        fi
     else
         error "服务未能正常启动"
+        warning "请检查日志文件: $LOG_FILE"
+        warning "手动检查服务状态: launchctl print 'system/$SERVICE_NAME'"
         exit 1
     fi
 }
@@ -222,24 +256,69 @@ LOG_FILE="/var/log/macos-ipv6-fixed-suffix/ipv6_monitor.log"
 case "$1" in
     start)
         echo "启动 IPv6 监控服务..."
-        sudo launchctl load "$PLIST_FILE"
+        if sudo launchctl bootstrap system "$PLIST_FILE" 2>/dev/null; then
+            echo "✓ 服务启动成功 (bootstrap)"
+        elif sudo launchctl load "$PLIST_FILE" 2>/dev/null; then
+            echo "✓ 服务启动成功 (load)"
+        else
+            echo "✗ 服务启动失败"
+            echo "请检查配置文件: $PLIST_FILE"
+        fi
         ;;
     stop)
         echo "停止 IPv6 监控服务..."
-        sudo launchctl unload "$PLIST_FILE"
+        if sudo launchctl bootout system "$PLIST_FILE" 2>/dev/null; then
+            echo "✓ 服务停止成功 (bootout)"
+        elif sudo launchctl unload "$PLIST_FILE" 2>/dev/null; then
+            echo "✓ 服务停止成功 (unload)"
+        else
+            echo "✗ 服务停止失败"
+        fi
         ;;
     restart)
         echo "重启 IPv6 监控服务..."
-        sudo launchctl unload "$PLIST_FILE" 2>/dev/null || true
+        # 停止服务
+        sudo launchctl bootout system "$PLIST_FILE" 2>/dev/null || sudo launchctl unload "$PLIST_FILE" 2>/dev/null || true
         sleep 1
-        sudo launchctl load "$PLIST_FILE"
+        # 启动服务
+        if sudo launchctl bootstrap system "$PLIST_FILE" 2>/dev/null; then
+            echo "✓ 服务重启成功 (bootstrap)"
+        elif sudo launchctl load "$PLIST_FILE" 2>/dev/null; then
+            echo "✓ 服务重启成功 (load)"
+        else
+            echo "✗ 服务重启失败"
+        fi
         ;;
     status)
-        if launchctl list | grep -q "$SERVICE_NAME"; then
+        # 使用 launchctl print 命令检查服务状态（更可靠）
+        if SERVICE_INFO=$(launchctl print "system/$SERVICE_NAME" 2>/dev/null); then
             echo "✓ IPv6 监控服务正在运行"
-            echo "PID: $(launchctl list | grep "$SERVICE_NAME" | awk '{print $1}')"
+            
+            # 提取 PID 和状态
+            PID=$(echo "$SERVICE_INFO" | grep "pid =" | awk '{print $3}')
+            STATE=$(echo "$SERVICE_INFO" | grep "state =" | awk '{print $3}')
+            
+            if [[ -n "$PID" ]]; then
+                echo "PID: $PID"
+            fi
+            if [[ -n "$STATE" ]]; then
+                echo "状态: $STATE"
+            fi
+            
+            # 显示更多详细信息
+            echo "服务详情:"
+            echo "  配置文件: $PLIST_FILE"
+            echo "  日志文件: $LOG_FILE"
+            
         else
             echo "✗ IPv6 监控服务未运行"
+            # 检查配置文件是否存在
+            if [[ -f "$PLIST_FILE" ]]; then
+                echo "配置文件存在，尝试启动服务:"
+                echo "  sudo launchctl bootstrap system \"$PLIST_FILE\""
+            else
+                echo "配置文件不存在: $PLIST_FILE"
+            fi
         fi
         ;;
     log)

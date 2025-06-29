@@ -28,7 +28,14 @@ DAEMON_MODE=false
 # ========== 函数定义 ==========
 
 log() {
-    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1" | tee -a "$LOG_FILE"
+    local message="[$(date '+%Y-%m-%d %H:%M:%S')] $1"
+    if [[ "$DAEMON_MODE" == "true" ]]; then
+        # 在 daemon 模式下只写入文件，避免与 LaunchDaemon 的 StandardOutPath 重复
+        echo "$message" >> "$LOG_FILE"
+    else
+        # 在交互模式下输出到终端和文件
+        echo "$message" | tee -a "$LOG_FILE"
+    fi
 }
 
 get_primary_interface() {
