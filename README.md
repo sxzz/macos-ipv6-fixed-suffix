@@ -2,64 +2,66 @@
 
 A monitoring script for macOS that automatically maintains IPv6 addresses with fixed suffixes when IPv6 prefixes change.
 
-## 🚀 安装
+## 🚀 Installation
 
-### 方法 1：在线安装（推荐）
+### Method 1: Online Installation (Recommended)
+
 ```bash
 curl -fsSL https://raw.githubusercontent.com/sxzz/macos-ipv6-fixed-suffix/refs/heads/main/install.sh | sudo bash
 ```
 
-### 方法 2：下载后安装
+### Method 2: Download and Install
+
 ```bash
 curl -fsSL https://raw.githubusercontent.com/sxzz/macos-ipv6-fixed-suffix/refs/heads/main/install.sh -o install.sh
 chmod +x install.sh
 sudo ./install.sh
 ```
 
-## ✨ 功能特性
+## ✨ Features
 
-- ✅ **开机自启** - 使用 macOS LaunchDaemon 系统服务
-- ✅ **后台运行** - 自动运行无需手动干预
-- ✅ **自动重启** - 服务崩溃时自动重启
-- ✅ **完整日志** - 详细的操作日志记录
-- ✅ **简易管理** - 命令行管理工具
+- ✅ **Auto Start on Boot** - Uses macOS LaunchDaemon system service
+- ✅ **Runs in Background** - Automatically runs without manual intervention
+- ✅ **Automatic Restart** - Service will restart automatically if it crashes
+- ✅ **Full Logging** - Detailed operation logs
+- ✅ **Easy Management** - Command-line management tool
 
-## 📋 使用
+## 📋 Usage
 
-安装后使用以下命令管理服务：
+After installation, use the following commands to manage the service:
 
 ```bash
-# 查看服务状态
+# Check service status
 ipv6-monitor status
 
-# 启动服务
+# Start the service
 ipv6-monitor start
 
-# 停止服务
+# Stop the service
 ipv6-monitor stop
 
-# 重启服务
+# Restart the service
 ipv6-monitor restart
 
-# 查看实时日志
+# View real-time logs
 ipv6-monitor log
 ```
 
-手动运行脚本进行测试：
+To manually run the script for testing:
 
 ```bash
 sudo ./run.sh
 ```
 
-## 🗑️ 卸载
+## 🗑️ Uninstallation
 
-运行卸载脚本：
+Run the uninstall script:
 
 ```bash
 sudo ./uninstall.sh
 ```
 
-或手动卸载：
+Or uninstall manually:
 
 ```bash
 sudo launchctl unload /Library/LaunchDaemons/com.github.sxzz.macos-ipv6-fixed-suffix.plist
@@ -69,17 +71,17 @@ sudo rm -rf /usr/local/bin/macos-ipv6-fixed-suffix
 sudo rm -rf /var/log/macos-ipv6-fixed-suffix
 ```
 
-## � 工作原理
+## ⚙️ How It Works
 
-1. 监控系统 IPv6 前缀变化
-2. 自动检测主要网络接口
-3. 使用 IPv4 地址最后一段作为 IPv6 后缀
-4. 前缀变化时自动添加新的固定后缀地址
-5. 清理过期地址
+1. Monitors system IPv6 prefix changes
+2. Automatically detects the primary network interface
+3. Uses the last segment of the IPv4 address as the IPv6 suffix
+4. Automatically adds new fixed-suffix addresses when the prefix changes
+5. Cleans up expired addresses
 
-## �🙏 致谢
+## 🙏 Acknowledgements
 
-感谢 GitHub Copilot 协助编写此脚本。
+Thanks to GitHub Copilot for assisting in writing this script.
 
 ## Sponsors
 

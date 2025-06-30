@@ -1,7 +1,5 @@
 #!/bin/bash
 
-# macOS IPv6 Fixed Suffix 简易卸载脚本
-
 SERVICE_NAME="com.github.sxzz.macos-ipv6-fixed-suffix"
 PLIST_FILE="/Library/LaunchDaemons/$SERVICE_NAME.plist"
 
@@ -11,55 +9,49 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m'
 
-echo -e "${BLUE}macOS IPv6 Fixed Suffix 卸载程序${NC}"
+echo -e "${BLUE}macOS IPv6 Fixed Suffix Uninstaller${NC}"
 echo "========================================"
 echo ""
 
-# 检查权限
 if [[ $EUID -ne 0 ]]; then
-    echo -e "${RED}错误: 需要管理员权限${NC}"
-    echo "请使用: sudo ./uninstall.sh"
+    echo -e "${RED}Error: Administrator privileges required${NC}"
+    echo "Please use: sudo ./uninstall.sh"
     exit 1
 fi
 
-echo -e "${YELLOW}正在卸载服务...${NC}"
+echo -e "${YELLOW}Uninstalling service...${NC}"
 
-# 停止并卸载服务
 if launchctl list | grep -q "$SERVICE_NAME"; then
     if launchctl bootout system "$PLIST_FILE" 2>/dev/null; then
-        echo -e "${GREEN}✓${NC} 服务已停止 (bootout)"
+        echo -e "${GREEN}✓${NC} Service stopped (bootout)"
     elif launchctl unload "$PLIST_FILE" 2>/dev/null; then
-        echo -e "${GREEN}✓${NC} 服务已停止 (unload)"
+        echo -e "${GREEN}✓${NC} Service stopped (unload)"
     else
-        echo -e "${YELLOW}⚠${NC} 服务停止失败"
+        echo -e "${YELLOW}⚠${NC} Failed to stop service"
     fi
 else
-    echo -e "${YELLOW}⚠${NC} 服务未在运行"
+    echo -e "${YELLOW}⚠${NC} Service is not running"
 fi
 
-# 删除配置文件
 if [[ -f "$PLIST_FILE" ]]; then
     rm -f "$PLIST_FILE"
-    echo -e "${GREEN}✓${NC} 删除服务配置文件"
+    echo -e "${GREEN}✓${NC} Service config file deleted"
 fi
 
-# 删除命令行工具
 if [[ -L "/usr/local/bin/ipv6-monitor" ]]; then
     rm -f "/usr/local/bin/ipv6-monitor"
-    echo -e "${GREEN}✓${NC} 删除命令行工具"
+    echo -e "${GREEN}✓${NC} CLI tool deleted"
 fi
 
-# 删除程序文件
 if [[ -d "/usr/local/bin/macos-ipv6-fixed-suffix" ]]; then
     rm -rf "/usr/local/bin/macos-ipv6-fixed-suffix"
-    echo -e "${GREEN}✓${NC} 删除程序文件"
+    echo -e "${GREEN}✓${NC} Program files deleted"
 fi
 
-# 删除日志文件
 if [[ -d "/var/log/macos-ipv6-fixed-suffix" ]]; then
     rm -rf "/var/log/macos-ipv6-fixed-suffix"
-    echo -e "${GREEN}✓${NC} 删除日志文件"
+    echo -e "${GREEN}✓${NC} Log files deleted"
 fi
 
 echo ""
-echo -e "${GREEN}完全卸载完成！${NC}"
+echo -e "${GREEN}Uninstallation complete!${NC}"
